@@ -1,5 +1,8 @@
 <p align="center">
-  <img width="300" height="auto" src="logo.png"/>
-  <h1>INFERNO</h1>
+  <img width="200" height="auto" src="logo.png"/>
+
+</p>
+<h1 align="center">INFERNO</h1>
+<p align="center">
   My daily use homemade hotreload library.
 </p>
