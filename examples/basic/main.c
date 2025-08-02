@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../../src/hotreload.c"
+#define HOTRELOAD_IMPL
+#include "../../src/hotreload.h"
 
 int main(void)
 {

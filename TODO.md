@@ -1,1 +1,0 @@
-- [ ] relative exe path for shared lib

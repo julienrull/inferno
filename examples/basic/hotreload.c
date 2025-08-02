@@ -15,7 +15,7 @@ static basic_state state = {0};
 
 void hotreload_main()
 {
-    printf("hello ! I'm %d\n", state.age);
+    printf("Salut ! I'm %d\n", state.age);
     sleep(1);
     state.age += 1;
 }
