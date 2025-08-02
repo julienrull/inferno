@@ -16,3 +16,8 @@
 > Inferno was primarily developed to suit my personal use cases, so it may not fully meet yours.  
 > However, it is designed to be as generic as possible to support common project structures, which might make it useful for others as well.  
 > It works well for small to medium-sized projects (not yet tested on larger ones).
+
+## Availability
+- ✅ Linux
+- ❌ Windows (work in progress)
+- ❌ MacOS (work in progress)
