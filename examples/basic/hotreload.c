@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdlib.h>
-#include <unistd.h>
-
-
+#include <windows.h>
 
 typedef struct basic_state
 {
@@ -13,19 +11,19 @@ typedef struct basic_state
 static basic_state state = {0};
 
 
-void hotreload_main()
+__declspec(dllexport) void hotreload_main()
 {
-    printf("Salut ! I'm %d\n", state.age);
-    sleep(1);
+    printf("Hola ! I'm %d\n", state.age);
+    Sleep(1000);
     state.age += 1;
 }
 
-void hotreload_get_state(void *in_raw)
+__declspec(dllexport) void hotreload_get_state(void *in_raw)
 {
     *((basic_state*)in_raw) = state;
 }
 
-void hotreload_set_state(void *out_raw)
+__declspec(dllexport) void hotreload_set_state(void *out_raw)
 {
     state = *((basic_state*)out_raw);
 }

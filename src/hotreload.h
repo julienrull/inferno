@@ -36,7 +36,7 @@ void hotreload_reload(hotreload_t *hotreload);
        
 #elif defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
-#define HOTRELOAD_COMPILER "x86_64-w64-mingw32-gcc"
+#define HOTRELOAD_COMPILER "cl"
 #define HOTRELOAD_SHARED_LIB_NAME "hotreload.dll"
 
 #ifdef HOTRELOAD_IMPL
@@ -56,7 +56,7 @@ void hotreload_reload(hotreload_t *hotreload);
 struct hotreload_t 
 {
     const char *exe_path;
-    char **sources;
+    const char **sources;
     int source_count;
     char *const  *cmd;
     const char *main_symbol;
@@ -107,7 +107,41 @@ static hotreload_main_func hotreload_main_extern;
 static hotreload_get_state_func hotreload_get_state_extern;
 static hotreload_set_state_func hotreload_set_state_extern;
 
-static hotreload_t default_config = (hotreload_t){
+//static hotreload_t default_config = (hotreload_t){
+//    .exe_path           = ".",
+//    .sources            = { "hotreload.c"},
+//    .source_count       = 1,
+//    .cmd                = { 
+//        HOTRELOAD_COMPILER,
+//        HOTRELOAD_COMPILER,
+//        "-std=c99",
+//        "-L./lib",
+//        "-I./include",
+//        "-shared",
+//        "hotreload.c",
+//        "-o", 
+//        HOTRELOAD_SHARED_LIB_NAME, 
+//        (char*)NULL 
+//    },
+//    .main_symbol        = "hotreload_main",
+//    .get_state_symbol   = "hotreload_get_state",
+//    .set_state_symbol   = "hotreload_set_state",
+//    .handle             = NULL,
+//    .error              = NULL,
+//    .last_mtime         = 0,
+//    .srcs_last_mtime    = 0,
+//    .has_started        = 0
+//}; 
+
+
+void hotreload_init(hotreload_t *hotreload_state)
+{
+    if(!hotreload_state)
+    {
+        fprintf(stderr, "HOTRELOAD INIT ERROR: invalid input.\n"); 
+        exit(1);
+    }
+    *hotreload_state = (hotreload_t){
     .exe_path           = ".",
     .sources            = hotreload_default_sources,
     .source_count       = 1,
@@ -119,18 +153,8 @@ static hotreload_t default_config = (hotreload_t){
     .error              = NULL,
     .last_mtime         = 0,
     .srcs_last_mtime    = 0,
-    .has_started        = 0,
-}; 
-
-
-void hotreload_init(hotreload_t *hotreload_state)
-{
-    if(!hotreload_state)
-    {
-        fprintf(stderr, "HOTRELOAD INIT ERROR: invalid input.\n"); 
-        exit(1);
-    }
-    *hotreload_state = default_config;
+    .has_started        = 0
+};
 
 }
 
@@ -346,17 +370,17 @@ void hotreload_reload(hotreload_t *hotreload)
     // FETCH API
     hotreload_main_extern = (hotreload_main_func)GetProcAddress((HMODULE)hotreload->handle, hotreload->main_symbol);
     if (!hotreload_main_extern)  {
-        fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
+        fprintf(stderr, "Failed to load main_symbol. Error code: %lu\n", GetLastError());
         exit(1);
     }
     hotreload_get_state_extern = (hotreload_get_state_func)GetProcAddress((HMODULE)hotreload->handle, hotreload->get_state_symbol);
     if (!hotreload_get_state_extern)  {
-        fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
+        fprintf(stderr, "Failed to load get_state_symbol. Error code: %lu\n", GetLastError());
         exit(1);
     }
     hotreload_set_state_extern = (hotreload_set_state_func)GetProcAddress((HMODULE)hotreload->handle, hotreload->set_state_symbol);
     if (!hotreload_set_state_extern)  {
-        fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
+        fprintf(stderr, "Failed to load set_state_symbol. Error code: %lu\n", GetLastError());
         exit(1);
     }
     hotreload->has_started = 1;
