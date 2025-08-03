@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "raylib.h"
+#define BUILD_LIBTYPE_SHARED 
+#include "./include/raylib.h"
 
 typedef struct {
     int was_init;
@@ -26,7 +27,7 @@ void game_update(float dt)
 void game_draw()
 {
     ClearBackground(RAYWHITE);
-    DrawCircleV(game_state_inter.player_pos, 50, YELLOW);
+    DrawCircleV(game_state_inter.player_pos, 50, RED);
 }
 
 void game_loop()
@@ -44,17 +45,17 @@ void game_loop()
 
 // Hotreload interface
 
-void hotreload_main()
+__declspec(dllexport) void hotreload_main()
 {
     game_loop();
 }
 
-void hotreload_get_state(void *out_raw)
+__declspec(dllexport) void hotreload_get_state(void *out_raw)
 {
     *((game_state_t*)out_raw) = game_state_inter;
 }
 
-void hotreload_set_state(void *in_raw)
+__declspec(dllexport) void hotreload_set_state(void *in_raw)
 {
     game_state_inter = *((game_state_t*)in_raw); 
 }

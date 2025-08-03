@@ -10,49 +10,6 @@ struct hotreload_t;
 typedef struct hotreload_t hotreload_t; 
 enum hotreload_action_t;
 typedef enum hotreload_action_t hotreload_action_t;
-
-typedef void (*hotreload_main_func)(void);
-typedef void (*hotreload_set_state_func)(void*);
-typedef void (*hotreload_get_state_func)(void*);
-
-void hotreload_init(hotreload_t *hotreload_state);
-int hotreload_watch_sources(hotreload_t *hotreload_state);
-int hotreload_copy(const char *dst, const char *src); 
-hotreload_action_t hotreload_get_action(hotreload_t *hotreload);
-void hotreload_update(hotreload_t *hotreload);
-void hotreload_detroy(hotreload_t *hotreload);
-void hotreload_compile(hotreload_t *hotreload_state);
-void hotreload_reload(hotreload_t *hotreload);
-
-#if defined(__linux__) || defined(__unix__) || defined(__posix__)
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <dlfcn.h> 
-#ifdef HOTRELOAD_IMPL
-#define HOTRELOAD_LINUX_IMPL
-#endif //HOTRELOAD_IMPL
-       
-#elif defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-#define HOTRELOAD_COMPILER "cl"
-#define HOTRELOAD_SHARED_LIB_NAME "hotreload.dll"
-
-#ifdef HOTRELOAD_IMPL
-#define HOTRELOAD_WIN32_IMPL
-#endif // HOTRELOAD_IMPL
-       
-#elif defined(__APPLE__) && defined(__MACH__)
-
-#ifdef HOTRELOAD_IMPL
-#define HOTRELOAD_DARWIN_IMPL
-#endif // HOTRELOAD_IMPL
-       
-#endif // defined(__linux__) || defined(__unix__) || defined(__posix__)
-
-
-#ifdef HOTRELOAD_IMPL
 struct hotreload_t 
 {
     const char *exe_path;
@@ -75,6 +32,44 @@ typedef enum hotreload_action_t
     HOTRELOAD_ACTION_COMPILE    = 1,
     HOTRELOAD_ACTION_RELOAD     = 2
 } hotreload_action_t;
+
+typedef void (*hotreload_main_func)(void);
+typedef void (*hotreload_set_state_func)(void*);
+typedef void (*hotreload_get_state_func)(void*);
+
+void hotreload_init(hotreload_t *hotreload_state);
+int hotreload_watch_sources(hotreload_t *hotreload_state);
+int hotreload_copy(const char *dst, const char *src); 
+hotreload_action_t hotreload_get_action(hotreload_t *hotreload);
+void hotreload_update(hotreload_t *hotreload);
+void hotreload_detroy(hotreload_t *hotreload);
+void hotreload_compile(hotreload_t *hotreload_state);
+void hotreload_reload(hotreload_t *hotreload);
+
+#if defined(__linux__) || defined(__unix__) || defined(__posix__)
+
+#ifdef HOTRELOAD_IMPL
+#define HOTRELOAD_LINUX_IMPL
+#endif //HOTRELOAD_IMPL
+       
+#elif defined(_WIN32) || defined(_WIN64)
+#define HOTRELOAD_COMPILER "cl"
+#define HOTRELOAD_SHARED_LIB_NAME "hotreload.dll"
+
+#ifdef HOTRELOAD_IMPL
+#define HOTRELOAD_WIN32_IMPL
+#endif // HOTRELOAD_IMPL
+       
+#elif defined(__APPLE__) && defined(__MACH__)
+
+#ifdef HOTRELOAD_IMPL
+#define HOTRELOAD_DARWIN_IMPL
+#endif // HOTRELOAD_IMPL
+       
+#endif // defined(__linux__) || defined(__unix__) || defined(__posix__)
+
+
+#ifdef HOTRELOAD_IMPL
 
 
 #define HOTRELOAD_PATH_SIZE 1024
@@ -252,6 +247,12 @@ void hotreload_update(hotreload_t *hotreload)
 #endif
 
 #ifdef HOTRELOAD_LINUX_IMPL
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <dlfcn.h> 
+
 void hotreload_compile(hotreload_t *hotreload_state)
 {
     pid_t pid = fork();
@@ -321,6 +322,8 @@ void hotreload_detroy(hotreload_t *hotreload)
 
 
 #ifdef HOTRELOAD_WIN32_IMPL
+#include <windows.h>
+
 void hotreload_compile(hotreload_t *hotreload_state)
 {
     (void)hotreload_state;
@@ -330,7 +333,7 @@ void hotreload_compile(hotreload_t *hotreload_state)
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
-    char command[] = "cl /LD hotreload.c";
+    char command[] = "cl /LD hotreload.c /link /libpath:.\\lib raylib.lib";
 
     if (!CreateProcess(
             NULL,       
@@ -362,7 +365,7 @@ void hotreload_reload(hotreload_t *hotreload)
         exit(1);
     }
     // LOAD DYNLIB
-    hotreload->handle = LoadLibrary(shared_lib_tmp_path);
+    hotreload->handle = LoadLibraryA(shared_lib_tmp_path);
     if (!hotreload->handle) {
         fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
         exit(1);

@@ -1,7 +1,5 @@
-#include "raylib.h"
-#define HOTRELOAD_IMPL
 #include "../../src/hotreload.h"
-
+#include "raylib.h"
 int main(void)
 {
     hotreload_t hotreload_state = {0};
