@@ -35,6 +35,9 @@ void hotreload_reload(hotreload_t *hotreload);
 #endif //HOTRELOAD_IMPL
        
 #elif defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#define HOTRELOAD_COMPILER "x86_64-w64-mingw32-gcc"
+#define HOTRELOAD_SHARED_LIB_NAME "hotreload.dll"
 
 #ifdef HOTRELOAD_IMPL
 #define HOTRELOAD_WIN32_IMPL
@@ -74,8 +77,6 @@ typedef enum hotreload_action_t
 } hotreload_action_t;
 
 
-#define HOTRELOAD_COMPILER "gcc"
-#define HOTRELOAD_SHARED_LIB_NAME "hotreload.so"
 #define HOTRELOAD_PATH_SIZE 1024
 #define HOTRELOAD_STATE_SIZE 1024
 
@@ -224,10 +225,6 @@ void hotreload_update(hotreload_t *hotreload)
     }
 }
 
-void hotreload_detroy(hotreload_t *hotreload)
-{
-    if(hotreload) dlclose(hotreload->handle);
-}
 #endif
 
 #ifdef HOTRELOAD_LINUX_IMPL
@@ -292,11 +289,83 @@ void hotreload_reload(hotreload_t *hotreload)
     }
     hotreload->has_started = 1;
 }
+void hotreload_detroy(hotreload_t *hotreload)
+{
+    if(hotreload) dlclose(hotreload->handle);
+}
 #endif
 
 
 #ifdef HOTRELOAD_WIN32_IMPL
+void hotreload_compile(hotreload_t *hotreload_state)
+{
+    (void)hotreload_state;
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
 
+    char command[] = "cl /LD hotreload.c";
+
+    if (!CreateProcess(
+            NULL,       
+            command,    
+            NULL,       
+            NULL,       
+            FALSE,      
+            0,          
+            NULL,       
+            NULL,       
+            &si,        
+            &pi)) 
+    {
+        fprintf(stderr, "Could not create child process.\n");
+        exit(1);
+    }
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+}
+void hotreload_reload(hotreload_t *hotreload)
+{
+    // UNLOAD CURRENT 
+    if(hotreload->handle) FreeLibrary((HMODULE)hotreload->handle);
+    // COPY & RENAME TMP
+    if(hotreload_copy(shared_lib_tmp_path, shared_lib_path) == -1)
+    {
+        fprintf(stderr, "RELOAD ERROR: Fail to copy new shared.");
+        exit(1);
+    }
+    // LOAD DYNLIB
+    hotreload->handle = LoadLibrary(shared_lib_tmp_path);
+    if (!hotreload->handle) {
+        fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
+        exit(1);
+    }
+    // FETCH API
+    hotreload_main_extern = (hotreload_main_func)GetProcAddress((HMODULE)hotreload->handle, hotreload->main_symbol);
+    if (!hotreload_main_extern)  {
+        fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
+        exit(1);
+    }
+    hotreload_get_state_extern = (hotreload_get_state_func)GetProcAddress((HMODULE)hotreload->handle, hotreload->get_state_symbol);
+    if (!hotreload_get_state_extern)  {
+        fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
+        exit(1);
+    }
+    hotreload_set_state_extern = (hotreload_set_state_func)GetProcAddress((HMODULE)hotreload->handle, hotreload->set_state_symbol);
+    if (!hotreload_set_state_extern)  {
+        fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
+        exit(1);
+    }
+    hotreload->has_started = 1;
+}
+
+void hotreload_detroy(hotreload_t *hotreload)
+{
+    if(hotreload) FreeLibrary((HMODULE)hotreload->handle);
+}
 #endif
 
 #endif
