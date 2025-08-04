@@ -11,6 +11,9 @@
 #define INFERNO_PATH_SIZE 1024
 #define INFERNO_STATE_SIZE 1024
 
+#define INFERNO_DEFAULT_NAME "inferno"
+#define INFERNO_DEFAULT_SOURCE INFERNO_DEFAULT_NAME ".c"
+
 typedef struct inferno_config_t {
     char *cc; 
     char *exe_path; 
@@ -66,6 +69,8 @@ void inferno_reload(inferno_t *inferno);
 
 #if defined(__linux__) || defined(__unix__) || defined(__posix__)
 #define __inferno_export
+#define INFERNO_DEFAULT_COMPILER "gcc"
+#define INFERNO_DEFAULT_EXT ".so"
 #ifdef INFERNO_IMPL
 #define INFERNO_LINUX_IMPL
 #endif //INFERNO_IMPL
@@ -73,6 +78,8 @@ void inferno_reload(inferno_t *inferno);
 #elif defined(_WIN32) || defined(_WIN64)
 
 #define __inferno_export __declspec(dllexport)
+#define INFERNO_DEFAULT_COMPILER "cl"
+#define INFERNO_DEFAULT_EXT ".dll"
 
 #ifdef INFERNO_IMPL
 #define INFERNO_WIN32_IMPL
@@ -204,15 +211,15 @@ void inferno_init(inferno_t *inferno)
     }
     inferno_t tmp_inferno = {
         .config = {
-            .cc = inferno->config.cc ? inferno->config.cc : "gcc",
+            .cc = inferno->config.cc ? inferno->config.cc : INFERNO_DEFAULT_COMPILER,
             .flags = { (char*)NULL },
-            .srcs = { "inferno.c", (char*)NULL }, 
+            .srcs = { INFERNO_DEFAULT_SOURCE, (char*)NULL }, 
             .libs = { (char*)NULL },
             .exe_path = inferno->config.exe_path ? inferno->config.exe_path : ".", 
-            .exe = inferno->config.exe ? inferno->config.exe : "inferno.so", 
-            .main_symbol = inferno->config.main_symbol ? inferno->config.main_symbol: "inferno_main", 
-            .get_state_symbol = inferno->config.get_state_symbol ? inferno->config.get_state_symbol : "inferno_main", 
-            .set_state_symbol = inferno->config.set_state_symbol ? inferno->config.set_state_symbol : "inferno_main", 
+            .exe = inferno->config.exe ? inferno->config.exe : INFERNO_DEFAULT_NAME INFERNO_DEFAULT_EXT, 
+            .main_symbol = inferno->config.main_symbol ? inferno->config.main_symbol: INFERNO_DEFAULT_NAME "_main", 
+            .get_state_symbol = inferno->config.get_state_symbol ? inferno->config.get_state_symbol : INFERNO_DEFAULT_NAME "_get_state", 
+            .set_state_symbol = inferno->config.set_state_symbol ? inferno->config.set_state_symbol : INFERNO_DEFAULT_NAME "_set_state", 
         }
     };
 
@@ -220,7 +227,7 @@ void inferno_init(inferno_t *inferno)
     tmp_inferno.state.cmd[1] = tmp_inferno.config.cc;
     tmp_inferno.state.cmd[2] = "-std=c99";
     tmp_inferno.state.cmd[3] = "-shared";
-    strcat(tmp_inferno.state.cmd_str, "cl");
+    strcat(tmp_inferno.state.cmd_str, tmp_inferno.config.cc);
     strcat(tmp_inferno.state.cmd_str, " /nologo /LD");
 
     int i = 4;
@@ -251,7 +258,7 @@ void inferno_init(inferno_t *inferno)
         }
         tmp_inferno.config.srcs[j] = (char*)NULL;
     }else{
-            strcat(tmp_inferno.state.cmd_str, " inferno.c");
+            strcat(tmp_inferno.state.cmd_str, " " INFERNO_DEFAULT_SOURCE);
             i+=1;
     }
 
@@ -260,7 +267,7 @@ void inferno_init(inferno_t *inferno)
     tmp_inferno.state.cmd[i] = tmp_inferno.config.exe;
     i += 1;
     strcat(tmp_inferno.state.cmd_str, " /link /OUT:");
-    strcat(tmp_inferno.state.cmd_str, "inferno.dll");
+    strcat(tmp_inferno.state.cmd_str, tmp_inferno.config.exe);
 
     tmp_inferno.state.cmd[i] = (char*)NULL;
     if (inferno->config.libs[0] != NULL)
