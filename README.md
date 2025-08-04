@@ -26,11 +26,11 @@ In the meantime, you can check the `examples` folder for basic usage.
 ## Availability
 - ✅ Linux
 - ✅ Windows
-- ❌ MacOS (work in progress)
+- ⚠️ MacOS (should work, not yet tested)
 
 ## ROADMAP
 Not necessarily in that order
 - [x] Linux working alpha 
 - [x] Windows alpha
-- [ ] MacOS alpha
+- [ ] ⚠️ MacOS alpha (need tests)
 - [ ] Documentation
