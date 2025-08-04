@@ -1,19 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define HOTRELOAD_IMPL
-#include "../../src/hotreload.h"
+#define INFERNO_IMPL
+#include "../../src/inferno.h"
 
 int main(void)
 {
-    hotreload_t hotreload = {0};
-    hotreload_init(&hotreload);
+    inferno_t inferno = {0};
+    inferno_init(&inferno);
 
     int running = 1; 
     while(running)
     {
-        hotreload_update(&hotreload);
+        inferno_update(&inferno);
     }
-
-    hotreload_detroy(&hotreload);
+    inferno_detroy(&inferno);
     return 0;
 }
