@@ -25,13 +25,12 @@ In the meantime, you can check the `examples` folder for basic usage.
 
 ## Availability
 - ✅ Linux
-- ❌ Windows (work in progress)
+- ✅ Windows
 - ❌ MacOS (work in progress)
 
 ## ROADMAP
 Not necessarily in that order
 - [x] Linux working alpha 
-- [ ] Windows alpha
+- [x] Windows alpha
 - [ ] MacOS alpha
-- [ ] Better config API
 - [ ] Documentation
