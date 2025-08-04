@@ -13,6 +13,6 @@ int main(void)
     {
         inferno_update(&inferno);
     }
-    inferno_detroy(&inferno);
+    inferno_destroy(&inferno);
     return 0;
 }

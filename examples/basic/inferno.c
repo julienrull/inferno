@@ -13,7 +13,7 @@ static basic_state state = {0};
 
 __inferno_export void inferno_main()
 {
-    printf("Hola ! I'm %d\n", state.age);
+    printf("Hll ! I'm %d\n", state.age);
     state.age += 1;
 }
 
