@@ -336,7 +336,7 @@ void inferno_detroy(inferno_t *inferno)
 #ifdef INFERNO_WIN32_IMPL
 #include <windows.h>
 
-static inferno_config_t inferno_default_win32_config = (inferno_config_t){
+static const inferno_config_t inferno_default_win32_config = {
     .cc = "cl",
     .flags = { "/nologo", "/LD", (char*)NULL },
     .srcs = { "inferno.c", (char*)NULL }, 
@@ -356,7 +356,7 @@ void inferno_init(inferno_t *inferno)
         exit(1); 
     }
 
-    if(!inferno->config-> inferno->config->= &inferno_default_linux_config;
+    if(!inferno->config) inferno->config= &inferno_default_win32_config;
 
     strcat(inferno->state.cmd_str, inferno->config->cc);
     int i = 0;
@@ -388,7 +388,6 @@ void inferno_init(inferno_t *inferno)
 
 void inferno_compile(inferno_t *inferno)
 {
-    (void)inferno_state;
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si));
@@ -419,13 +418,13 @@ void inferno_reload(inferno_t *inferno)
     // UNLOAD CURRENT 
     if(inferno->state.handle) FreeLibrary((HMODULE)inferno->state.handle);
     // COPY & RENAME TMP
-    if(inferno_copy(shared_lib_tmp_path, shared_lib_path) == -1)
+    if(inferno_copy(inferno_shared_lib_tmp_path, inferno_shared_lib_path) == -1)
     {
         fprintf(stderr, "RELOAD ERROR: Fail to copy new shared.");
         exit(1);
     }
     // LOAD DYNLIB
-    inferno->state.handle = LoadLibraryA(shared_lib_tmp_path);
+    inferno->state.handle = LoadLibraryA(inferno_shared_lib_tmp_path);
     if (!inferno->state.handle) {
         fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
         exit(1);
