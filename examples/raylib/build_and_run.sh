@@ -3,7 +3,7 @@
 CC="gcc"
 FLAGS="-g -std=c99 -Wall -Werror -L./lib -I./include"
 LIBS="-l:libraylib.so -lm" 
-SRCS="main.c"
+SRCS="implementation_isolation.c main.c"
 EXE="app"
 
 $CC $FLAGS $SRCS -o $EXE $LIBS
