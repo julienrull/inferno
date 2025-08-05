@@ -26,11 +26,8 @@ In the meantime, you can check the `examples` folder for basic usage.
 ## Availability
 - ✅ Linux
 - ✅ Windows
-- ⚠️ MacOS (should work, not yet tested)
+- ✅ MacOS
 
 ## ROADMAP
 Not necessarily in that order
-- [x] Linux working alpha 
-- [x] Windows alpha
-- [ ] ⚠️ MacOS alpha (need tests)
 - [ ] Documentation
