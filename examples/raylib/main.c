@@ -13,6 +13,11 @@ int main(void)
 #if defined(_WIN32) || defined(_WIN64)
     inferno.config.libs[0] = ".\\lib\\raylib.lib";
     inferno.config.libs[1] = NULL;
+#elif defined(__APPLE__) && defined(__MACH__)
+    inferno.config.cc = "clang";
+    inferno.config.libs[0] = "./lib/libraylib.dylib";
+    inferno.config.libs[1] = NULL;
+
 #endif
     inferno_init(&inferno);
     const int screenWidth  = 800;

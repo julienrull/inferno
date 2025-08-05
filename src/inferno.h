@@ -86,6 +86,7 @@ void inferno_reload(inferno_t *inferno);
 #endif // INFERNO_IMPL
        
 #elif defined(__APPLE__) && defined(__MACH__)
+#define __inferno_export
 #define INFERNO_DEFAULT_COMPILER "clang"
 #define INFERNO_DEFAULT_EXT ".dylib"
 #ifdef INFERNO_IMPL
