@@ -20,14 +20,12 @@
 
 
 ## Documentation
-Documentation is not yet written.  
-In the meantime, you can check the `examples` folder for basic usage.
+
+[doc](https://github.com/julienrull/inferno/tree/master/doc/doc.md)
+
+You can check the [examples](https://github.com/julienrull/inferno/tree/master/examples) folder for basic usage.
 
 ## Availability
 - ✅ Linux
 - ✅ Windows
 - ✅ MacOS
-
-## ROADMAP
-Not necessarily in that order
-- [ ] Documentation

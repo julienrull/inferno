@@ -24,6 +24,7 @@ typedef struct inferno_config_t {
     char *main_symbol;
     char *get_state_symbol;
     char *set_state_symbol;
+    int compilation_include_all_srcs;
 } inferno_config_t; 
 
 
@@ -222,6 +223,7 @@ void inferno_init(inferno_t *inferno)
             .main_symbol = inferno->config.main_symbol ? inferno->config.main_symbol: INFERNO_DEFAULT_NAME "_main", 
             .get_state_symbol = inferno->config.get_state_symbol ? inferno->config.get_state_symbol : INFERNO_DEFAULT_NAME "_get_state", 
             .set_state_symbol = inferno->config.set_state_symbol ? inferno->config.set_state_symbol : INFERNO_DEFAULT_NAME "_set_state", 
+            .compilation_include_all_srcs = inferno->config.compilation_include_all_srcs,
         }
     };
 
@@ -245,22 +247,27 @@ void inferno_init(inferno_t *inferno)
             j += 1;
         }
     }
-    tmp_inferno.state.cmd[i] = "inferno.c";
+    tmp_inferno.state.cmd[i] = tmp_inferno.config.srcs[0];
     if (inferno->config.srcs[0] != NULL)
     {
         int j = 0;
         while (inferno->config.srcs[j] != NULL)
         {
-            tmp_inferno.state.cmd[i] = inferno->config.srcs[j];
+            
             tmp_inferno.config.srcs[j] = inferno->config.srcs[j];
-            strcat(tmp_inferno.state.cmd_str, " ");
-            strcat(tmp_inferno.state.cmd_str, inferno->config.srcs[j]);
-            i += 1;
+            if(inferno->config.compilation_include_all_srcs == 0 || j == 0)
+            {
+                tmp_inferno.state.cmd[i] = inferno->config.srcs[j];
+                strcat(tmp_inferno.state.cmd_str, " ");
+                strcat(tmp_inferno.state.cmd_str, inferno->config.srcs[j]);
+                i += 1;
+            }
             j += 1;
         }
         tmp_inferno.config.srcs[j] = (char*)NULL;
     }else{
-            strcat(tmp_inferno.state.cmd_str, " " INFERNO_DEFAULT_SOURCE);
+            strcat(tmp_inferno.state.cmd_str, " ");
+            strcat(tmp_inferno.state.cmd_str, tmp_inferno.config.srcs[0]);
             i+=1;
     }
 
@@ -357,12 +364,10 @@ void inferno_reload(inferno_t *inferno)
     inferno_get_state_extern = dlsym(inferno->state.handle, inferno->config.get_state_symbol);
     if ((inferno->state.error = dlerror()) != NULL)  {
         fprintf(stderr, "Error: %s\n", inferno->state.error);
-        exit(1);
     }
     inferno_set_state_extern = dlsym(inferno->state.handle, inferno->config.set_state_symbol);
     if ((inferno->state.error = dlerror()) != NULL)  {
         fprintf(stderr, "Error: %s\n", inferno->state.error);
-        exit(1);
     }
     inferno->state.has_started = 1;
 }
@@ -430,12 +435,10 @@ void inferno_reload(inferno_t *inferno)
     inferno_get_state_extern = (inferno_get_state_func)GetProcAddress((HMODULE)inferno->state.handle, inferno->config.get_state_symbol);
     if (!inferno_get_state_extern)  {
         fprintf(stderr, "Failed to load get_state_symbol. Error code: %lu\n", GetLastError());
-        exit(1);
     }
     inferno_set_state_extern = (inferno_set_state_func)GetProcAddress((HMODULE)inferno->state.handle, inferno->config.set_state_symbol);
     if (!inferno_set_state_extern)  {
         fprintf(stderr, "Failed to load set_state_symbol. Error code: %lu\n", GetLastError());
-        exit(1);
     }
     inferno->state.has_started = 1;
 }
