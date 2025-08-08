@@ -186,6 +186,8 @@ void inferno_increment_file_version(inferno_t *inferno)
 
 void inferno_compile(inferno_t *inferno)
 {
+    // UNLOAD CURRENT 
+    if(inferno->handle) dlclose(inferno->handle);
     pid_t pid = fork();
     if(pid == -1)
     {
@@ -211,8 +213,6 @@ void inferno_compile(inferno_t *inferno)
 }
 void inferno_reload(inferno_t *inferno)
 {
-    // UNLOAD CURRENT 
-    if(inferno->handle) dlclose(inferno->handle);
     // LOAD DYNLIB
     inferno->handle = dlopen(output, RTLD_LAZY);
     if (!inferno->handle) {
@@ -244,6 +244,8 @@ void inferno_destroy(inferno_t *inferno)
 
 void inferno_compile(inferno_t *inferno)
 {
+    // UNLOAD CURRENT 
+    if(inferno->handle) FreeLibrary((HMODULE)inferno->handle);
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si));
@@ -283,8 +285,6 @@ void inferno_compile(inferno_t *inferno)
 }
 void inferno_reload(inferno_t *inferno)
 {
-    // UNLOAD CURRENT 
-    if(inferno->handle) FreeLibrary((HMODULE)inferno->handle);
     // LOAD DYNLIB
     inferno->handle = LoadLibraryA(output);
     if (!inferno->handle) {

@@ -1,12 +1,11 @@
 #ifndef INFERNO_INTERFACE_H
 #define INFERNO_INTERFACE_H
 
-#ifndef __declspec
-#define dllexport
-#define __declspec(DLL_EXPORT)
+#ifdef _WIN32
+  #define __inferno_export __declspec(dllexport)
+#else
+  #define __inferno_export __attribute__((visibility("default")))
 #endif
-
-#define __inferno_export __declspec(dllexport)
 
 typedef struct inferno_interface_t{
     void (*main)();
