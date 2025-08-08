@@ -1,10 +1,14 @@
 #ifndef INFERNO_H
 #define INFERNO_H
 
+#include <stdio.h>
+#include <stdlib.h>
 
 #define INFERNO_CMD_MAX_SIZE 1024
 #define INFERNO_MAX_SOURCES 1024
 #define INFERNO_TMP_OUTPUT_SIZE 128
+
+
 typedef struct inferno_t 
 {
     void *handle;
@@ -12,6 +16,7 @@ typedef struct inferno_t
     int last_mtime;
     int has_started;
     int srcs_last_mtime[INFERNO_MAX_SOURCES];
+    int file_version;
 } inferno_t;
 
 typedef enum inferno_action_t
@@ -32,6 +37,9 @@ void inferno_update(inferno_t *inferno);
 void inferno_destroy(inferno_t *inferno);
 void inferno_compile(inferno_t *inferno);
 void inferno_reload(inferno_t *inferno);
+
+void inferno_increment_file_version(inferno_t *inferno);
+
 
 
 
@@ -62,28 +70,8 @@ void inferno_reload(inferno_t *inferno);
 #include "inferno_config.h"
 #include "inferno_interface.h"
 
+static char storage[INFERNO_STORAGE_SIZE] = {0};
 static inferno_interface_t *inferno_interface;
-static char tmp_output[INFERNO_TMP_OUTPUT_SIZE] = {0}; 
-
-
-int inferno_watch_sources(inferno_t *inferno)
-{
-    int are_changes = -1;
-    size_t count = sizeof(watched) / sizeof(watched[0]);
-    int i = 0;
-    while( i < count && are_changes != 0)
-    {
-        struct stat attr;
-        if (stat(watched[i], &attr) == 0) {
-            if (attr.st_mtime != inferno->srcs_last_mtime[i]) {
-                inferno->srcs_last_mtime[i] = attr.st_mtime;
-                are_changes = 0;
-            }
-        }
-        i += 1;
-    }
-    return are_changes;
-}
 
 int inferno_copy(const char *dst, const char *src) 
 {
@@ -104,65 +92,86 @@ int inferno_copy(const char *dst, const char *src)
     return 0;
 }
 
-
-void inferno_swap()
+int inferno_watch_sources(inferno_t *inferno)
 {
-
-    memset(tmp_output, 0, INFERNO_TMP_OUTPUT_SIZE);
-    strcat(tmp_output, "./tmp_");
-    strcat(tmp_output, output);
-    if(inferno_copy(tmp_output, output) == -1)
+    int are_changes = -1;
+    size_t count = sizeof(watched) / sizeof(watched[0]);
+    int i = 0;
+    while( i < count && are_changes != 0)
     {
-        fprintf(stderr, "RELOAD ERROR: Fail to copy new shared.");
-        exit(1);
+        struct stat attr;
+        if (stat(watched[i], &attr) == 0) {
+            if (attr.st_mtime != inferno->srcs_last_mtime[i]) {
+                inferno->srcs_last_mtime[i] = attr.st_mtime;
+                are_changes = 0;
+            }
+        }
+        i += 1;
     }
+    return are_changes;
+}
+
+void inferno_swap(inferno_t *inferno)
+{
+        char tmp_output[128] = {0}; 
+        char version[5] = {0};
+        strcat(tmp_output, output);
+        snprintf(version, 5, "%d", inferno->file_version);
+        strcat(tmp_output, ".");
+        strcat(tmp_output, version);
+        if(inferno_copy(tmp_output, output) == -1)
+        {
+            fprintf(stderr, "RELOAD ERROR: Fail to copy new shared.");
+            exit(1);
+        }
 }
 
 inferno_action_t inferno_get_action(inferno_t *inferno)
 {
-    struct stat attr;
-    int res_state = stat(output, &attr);
-    if ( res_state != 0 || inferno_watch_sources(inferno) == 0) 
-    {
-        return INFERNO_ACTION_COMPILE;
-    }
-
-    if ((res_state == 0 && !inferno_interface) || (res_state == 0 && attr.st_mtime != inferno->last_mtime)) 
-    {
-        inferno->last_mtime = attr.st_mtime;
-        return INFERNO_ACTION_RELOAD;
-    }
     return INFERNO_ACTION_NONE;
 }
 void inferno_update(inferno_t *inferno)
 {
-    inferno_action_t action = inferno_get_action(inferno);
-    if(inferno_interface && inferno_interface->get_state)
+
+    int trigger_version_upgrade = -1;
+    struct stat attr;
+    int res_state = stat(output, &attr);
+    if ( res_state != 0) 
     {
-        inferno_interface->get_state(&storage);
+        trigger_version_upgrade = 0;
     }
-    switch(action)
+    if (inferno_watch_sources(inferno) == 0) 
     {
-        case INFERNO_ACTION_COMPILE:{
-            printf("INFERNO_ACTION_COMPILE\n");
-            inferno_compile(inferno);
-        }break;
-        case INFERNO_ACTION_RELOAD:{
-            printf("INFERNO_ACTION_RELOAD\n");
-            inferno_reload(inferno);
-            if(inferno_interface && inferno_interface->set_state)
-            {
-                inferno_interface->set_state(&storage);
-            }
-        }break;
-        case INFERNO_ACTION_NONE: {
-            printf("INFERNO_ACTION_NONE\n");
-            if(inferno_interface && inferno_interface->main)
-            {
-                inferno_interface->main();
-            }
-        }break;
+        trigger_version_upgrade = 0;
     }
+    if(trigger_version_upgrade == 0)
+    {
+        if(inferno_interface && inferno_interface->get_state)
+        {
+            inferno_interface->get_state(&storage);
+        }
+        inferno_increment_file_version(inferno);
+        if(inferno_interface && inferno_interface->set_state)
+        {
+            inferno_interface->set_state(&storage);
+        }
+
+    }
+    if(inferno_interface && inferno_interface->main)
+    {
+        inferno_interface->main();
+    }
+}
+
+void inferno_increment_file_version(inferno_t *inferno)
+{
+    if(inferno->file_version > 0)
+    {
+        inferno_swap(inferno);
+    }
+    inferno->file_version += 1;
+    inferno_compile(inferno);
+    inferno_reload(inferno);
 }
 
 #endif
@@ -204,12 +213,8 @@ void inferno_reload(inferno_t *inferno)
 {
     // UNLOAD CURRENT 
     if(inferno->handle) dlclose(inferno->handle);
-    // COPY & RENAME TMP
-    
-    inferno_swap();
     // LOAD DYNLIB
-    printf("%s\n", tmp_output);
-    inferno->handle = dlopen(tmp_output, RTLD_LAZY);
+    inferno->handle = dlopen(output, RTLD_LAZY);
     if (!inferno->handle) {
         fprintf(stderr, "Error: %s\n", dlerror());
         exit(1);
@@ -280,10 +285,8 @@ void inferno_reload(inferno_t *inferno)
 {
     // UNLOAD CURRENT 
     if(inferno->handle) FreeLibrary((HMODULE)inferno->handle);
-    // COPY & RENAME TMP
-    inferno_swap();
     // LOAD DYNLIB
-    inferno->handle = LoadLibraryA(inferno_shared_lib_tmp_path);
+    inferno->handle = LoadLibraryA(output);
     if (!inferno->handle) {
         fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
         exit(1);

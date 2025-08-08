@@ -1,6 +1,8 @@
 #ifndef INFERNO_CONFIG_H
 #define INFERNO_CONFIG_H
 
+
+
  
 /* hot reloaded code state storage */ 
 #define INFERNO_STORAGE_SIZE 1024
