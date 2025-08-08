@@ -27,7 +27,7 @@ void game_update(float dt)
 void game_draw()
 {
     ClearBackground(RAYWHITE);
-    DrawCircleV(game_state_inter.player_pos, 50, GREEN);
+    DrawCircleV(game_state_inter.player_pos, 50, BLUE);
 }
 
 void game_loop()

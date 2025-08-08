@@ -32,7 +32,7 @@ typedef enum inferno_action_t
 int inferno_watch_sources(inferno_t *inferno);
 int inferno_copy(const char *dst, const char *src); 
 inferno_action_t inferno_get_action(inferno_t *inferno);
-void inferno_swap();
+void inferno_swap(inferno_t *inferno);
 void inferno_update(inferno_t *inferno);
 void inferno_destroy(inferno_t *inferno);
 void inferno_compile(inferno_t *inferno);
