@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../../src/inferno.h"
+#include "../../src/inferno_interface.h"
 #include "./include/raylib.h"
 
 typedef struct {
@@ -27,7 +27,7 @@ void game_update(float dt)
 void game_draw()
 {
     ClearBackground(RAYWHITE);
-    DrawCircleV(game_state_inter.player_pos, 50, GREEN);
+    DrawCircleV(game_state_inter.player_pos, 50, BLUE);
 }
 
 void game_loop()
@@ -45,17 +45,23 @@ void game_loop()
 
 // Hotreload interface
 
-__inferno_export void inferno_main()
+void inferno_main()
 {
     game_loop();
 }
 
-__inferno_export void inferno_get_state(void *out_raw)
+void inferno_get_state(void *out_raw)
 {
     *((game_state_t*)out_raw) = game_state_inter;
 }
 
-__inferno_export void inferno_set_state(void *in_raw)
+void inferno_set_state(void *in_raw)
 {
     game_state_inter = *((game_state_t*)in_raw); 
 }
+
+__inferno_export inferno_interface_t inferno_interface = {
+    .main = inferno_main,
+    .get_state = inferno_get_state,
+    .set_state = inferno_set_state,
+};

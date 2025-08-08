@@ -7,11 +7,6 @@ int main(void)
 {
     inferno_t inferno = {0};
 
-    #if defined(__APPLE__) && defined(__MACH__)
-        inferno.config.cc = "clang";
-    #endif
-    inferno_init(&inferno);
-
     int running = 1; 
     while(running)
     {

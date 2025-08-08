@@ -1,47 +1,17 @@
 #ifndef INFERNO_H
 #define INFERNO_H
 
-#define INFERNO_CMD_MAX_ARGS 128
-#define INFERNO_CMD_STR_MAX_SIZE 1024
 
-#define INFERNO_CMD_MAX_FLAGS 1024
-#define INFERNO_CMD_MAX_SRCS 1024
-#define INFERNO_CMD_MAX_LIBS 1024
-
-#define INFERNO_PATH_SIZE 1024
-#define INFERNO_STATE_SIZE 1024
-
-#define INFERNO_DEFAULT_NAME "inferno"
-#define INFERNO_DEFAULT_SOURCE INFERNO_DEFAULT_NAME ".c"
-
-typedef struct inferno_config_t {
-    char *cc; 
-    char *exe_path; 
-    char *exe; 
-    char *flags[INFERNO_CMD_MAX_FLAGS]; 
-    char *srcs[INFERNO_CMD_MAX_SRCS]; 
-    char *libs[INFERNO_CMD_MAX_LIBS]; 
-    char *main_symbol;
-    char *get_state_symbol;
-    char *set_state_symbol;
-    int compilation_include_all_srcs;
-} inferno_config_t; 
-
-
-typedef struct inferno_state_t {
+#define INFERNO_CMD_MAX_SIZE 1024
+#define INFERNO_MAX_SOURCES 1024
+#define INFERNO_TMP_OUTPUT_SIZE 128
+typedef struct inferno_t 
+{
     void *handle;
     char *error;
     int last_mtime;
-    int srcs_last_mtime;
     int has_started;
-    char *cmd[INFERNO_CMD_MAX_ARGS]; 
-    char cmd_str[INFERNO_CMD_STR_MAX_SIZE]; 
-} inferno_state_t; 
-
-typedef struct inferno_t 
-{
-    inferno_config_t config;
-    inferno_state_t state;
+    int srcs_last_mtime[INFERNO_MAX_SOURCES];
 } inferno_t;
 
 typedef enum inferno_action_t
@@ -52,49 +22,34 @@ typedef enum inferno_action_t
 } inferno_action_t;
 
 
-typedef void (*inferno_main_func)(void);
-typedef void (*inferno_set_state_func)(void*);
-typedef void (*inferno_get_state_func)(void*);
 
 
-
-void inferno_init(inferno_t *inferno);
 int inferno_watch_sources(inferno_t *inferno);
 int inferno_copy(const char *dst, const char *src); 
 inferno_action_t inferno_get_action(inferno_t *inferno);
+void inferno_swap();
 void inferno_update(inferno_t *inferno);
 void inferno_destroy(inferno_t *inferno);
 void inferno_compile(inferno_t *inferno);
 void inferno_reload(inferno_t *inferno);
 
 
-#if defined(__linux__) || defined(__unix__) || defined(__posix__)
-#define __inferno_export
-#define INFERNO_DEFAULT_COMPILER "gcc"
-#define INFERNO_DEFAULT_EXT ".so"
+
+#if defined(__linux__) || defined(__unix__) || defined(__posix__) ||defined(__APPLE__) || defined(__MACH__)
+
+
 #ifdef INFERNO_IMPL
 #define INFERNO_LINUX_IMPL
 #endif //INFERNO_IMPL
        
 #elif defined(_WIN32) || defined(_WIN64)
 
-#define __inferno_export __declspec(dllexport)
-#define INFERNO_DEFAULT_COMPILER "cl"
-#define INFERNO_DEFAULT_EXT ".dll"
 
 #ifdef INFERNO_IMPL
 #define INFERNO_WIN32_IMPL
 #endif // INFERNO_IMPL
-       
-#elif defined(__APPLE__) && defined(__MACH__)
-#define __inferno_export
-#define INFERNO_DEFAULT_COMPILER "clang"
-#define INFERNO_DEFAULT_EXT ".dylib"
-#ifdef INFERNO_IMPL
-#define INFERNO_DARWIN_IMPL
-#endif // INFERNO_IMPL
-       
-#endif // defined(__linux__) || defined(__unix__) || defined(__posix__)
+       //
+#endif // defined
 
 
 #ifdef INFERNO_IMPL
@@ -104,26 +59,24 @@ void inferno_reload(inferno_t *inferno);
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include "inferno_config.h"
+#include "inferno_interface.h"
 
-static char inferno_shared_lib_path[INFERNO_PATH_SIZE] = {0};
-static char inferno_shared_lib_tmp_path[INFERNO_PATH_SIZE] = {0};
-static char inferno_app_state[INFERNO_STATE_SIZE] = {0};
-
-static inferno_main_func inferno_main_extern;
-static inferno_get_state_func inferno_get_state_extern;
-static inferno_set_state_func inferno_set_state_extern;
+static inferno_interface_t *inferno_interface;
+static char tmp_output[INFERNO_TMP_OUTPUT_SIZE] = {0}; 
 
 
 int inferno_watch_sources(inferno_t *inferno)
 {
-    int i = 0;
     int are_changes = -1;
-    while(inferno->config.srcs[i] != NULL && are_changes != 0)
+    size_t count = sizeof(watched) / sizeof(watched[0]);
+    int i = 0;
+    while( i < count && are_changes != 0)
     {
         struct stat attr;
-        if (stat(inferno->config.srcs[i], &attr) == 0) {
-            if (attr.st_mtime != inferno->state.srcs_last_mtime) {
-                inferno->state.srcs_last_mtime = attr.st_mtime;
+        if (stat(watched[i], &attr) == 0) {
+            if (attr.st_mtime != inferno->srcs_last_mtime[i]) {
+                inferno->srcs_last_mtime[i] = attr.st_mtime;
                 are_changes = 0;
             }
         }
@@ -150,29 +103,33 @@ int inferno_copy(const char *dst, const char *src)
     fclose(out);
     return 0;
 }
+
+
+void inferno_swap()
+{
+
+    memset(tmp_output, 0, INFERNO_TMP_OUTPUT_SIZE);
+    strcat(tmp_output, "./tmp_");
+    strcat(tmp_output, output);
+    if(inferno_copy(tmp_output, output) == -1)
+    {
+        fprintf(stderr, "RELOAD ERROR: Fail to copy new shared.");
+        exit(1);
+    }
+}
+
 inferno_action_t inferno_get_action(inferno_t *inferno)
 {
     struct stat attr;
-    memset(inferno_shared_lib_path, 0, INFERNO_PATH_SIZE); 
-    memset(inferno_shared_lib_tmp_path, 0, INFERNO_PATH_SIZE); 
-
-    strcat(inferno_shared_lib_path, inferno->config.exe_path);
-    strcat(inferno_shared_lib_path, "/");
-    strcat(inferno_shared_lib_path, inferno->config.exe);
-
-    strcat(inferno_shared_lib_tmp_path, inferno->config.exe_path);
-    strcat(inferno_shared_lib_tmp_path, "/tmp_");
-    strcat(inferno_shared_lib_tmp_path, inferno->config.exe);
-
-    if (stat(inferno_shared_lib_path, &attr) != 0) {
-        return INFERNO_ACTION_COMPILE;
-    }
-    if(inferno_watch_sources(inferno) == 0)
+    int res_state = stat(output, &attr);
+    if ( res_state != 0 || inferno_watch_sources(inferno) == 0) 
     {
         return INFERNO_ACTION_COMPILE;
     }
-    if (attr.st_mtime != inferno->state.last_mtime) {
-        inferno->state.last_mtime = attr.st_mtime;
+
+    if ((res_state == 0 && !inferno_interface) || (res_state == 0 && attr.st_mtime != inferno->last_mtime)) 
+    {
+        inferno->last_mtime = attr.st_mtime;
         return INFERNO_ACTION_RELOAD;
     }
     return INFERNO_ACTION_NONE;
@@ -180,9 +137,9 @@ inferno_action_t inferno_get_action(inferno_t *inferno)
 void inferno_update(inferno_t *inferno)
 {
     inferno_action_t action = inferno_get_action(inferno);
-    if(inferno_get_state_extern)
+    if(inferno_interface && inferno_interface->get_state)
     {
-        inferno_get_state_extern(&inferno_app_state);
+        inferno_interface->get_state(&storage);
     }
     switch(action)
     {
@@ -193,113 +150,19 @@ void inferno_update(inferno_t *inferno)
         case INFERNO_ACTION_RELOAD:{
             printf("INFERNO_ACTION_RELOAD\n");
             inferno_reload(inferno);
-            if(inferno_set_state_extern)
+            if(inferno_interface && inferno_interface->set_state)
             {
-                inferno_set_state_extern(&inferno_app_state);
+                inferno_interface->set_state(&storage);
             }
         }break;
         case INFERNO_ACTION_NONE: {
             printf("INFERNO_ACTION_NONE\n");
-            inferno_main_extern();
+            if(inferno_interface && inferno_interface->main)
+            {
+                inferno_interface->main();
+            }
         }break;
     }
-}
-
-void inferno_init(inferno_t *inferno)
-{
-    if(!inferno) 
-    {
-        fprintf(stderr, "ERROR in inferno_init: wrong input.\n"); 
-        exit(1); 
-    }
-    inferno_t tmp_inferno = {
-        .config = {
-            .cc = inferno->config.cc ? inferno->config.cc : INFERNO_DEFAULT_COMPILER,
-            .flags = { (char*)NULL },
-            .srcs = { INFERNO_DEFAULT_SOURCE, (char*)NULL }, 
-            .libs = { (char*)NULL },
-            .exe_path = inferno->config.exe_path ? inferno->config.exe_path : ".", 
-            .exe = inferno->config.exe ? inferno->config.exe : INFERNO_DEFAULT_NAME INFERNO_DEFAULT_EXT, 
-            .main_symbol = inferno->config.main_symbol ? inferno->config.main_symbol: INFERNO_DEFAULT_NAME "_main", 
-            .get_state_symbol = inferno->config.get_state_symbol ? inferno->config.get_state_symbol : INFERNO_DEFAULT_NAME "_get_state", 
-            .set_state_symbol = inferno->config.set_state_symbol ? inferno->config.set_state_symbol : INFERNO_DEFAULT_NAME "_set_state", 
-            .compilation_include_all_srcs = inferno->config.compilation_include_all_srcs,
-        }
-    };
-
-    tmp_inferno.state.cmd[0] = tmp_inferno.config.cc;
-    tmp_inferno.state.cmd[1] = tmp_inferno.config.cc;
-    tmp_inferno.state.cmd[2] = "-std=c99";
-    tmp_inferno.state.cmd[3] = "-shared";
-    strcat(tmp_inferno.state.cmd_str, tmp_inferno.config.cc);
-    strcat(tmp_inferno.state.cmd_str, " /nologo /LD");
-
-    int i = 4;
-    if (inferno->config.flags[0] != NULL)
-    {
-        int j = 0;
-        while (inferno->config.flags[j] != NULL)
-        {
-            tmp_inferno.state.cmd[i] = inferno->config.flags[j];
-            strcat(tmp_inferno.state.cmd_str, " ");
-            strcat(tmp_inferno.state.cmd_str, inferno->config.flags[j]);
-            i += 1;
-            j += 1;
-        }
-    }
-    tmp_inferno.state.cmd[i] = tmp_inferno.config.srcs[0];
-    if (inferno->config.srcs[0] != NULL)
-    {
-        int j = 0;
-        while (inferno->config.srcs[j] != NULL)
-        {
-            
-            tmp_inferno.config.srcs[j] = inferno->config.srcs[j];
-            if(inferno->config.compilation_include_all_srcs == 0 || j == 0)
-            {
-                tmp_inferno.state.cmd[i] = inferno->config.srcs[j];
-                strcat(tmp_inferno.state.cmd_str, " ");
-                strcat(tmp_inferno.state.cmd_str, inferno->config.srcs[j]);
-                i += 1;
-            }
-            j += 1;
-        }
-        tmp_inferno.config.srcs[j] = (char*)NULL;
-    }else{
-            strcat(tmp_inferno.state.cmd_str, " ");
-            strcat(tmp_inferno.state.cmd_str, tmp_inferno.config.srcs[0]);
-            i+=1;
-    }
-
-    tmp_inferno.state.cmd[i] = "-o";
-    i += 1;
-    tmp_inferno.state.cmd[i] = tmp_inferno.config.exe;
-    i += 1;
-    strcat(tmp_inferno.state.cmd_str, " /link /OUT:");
-    strcat(tmp_inferno.state.cmd_str, tmp_inferno.config.exe);
-
-    tmp_inferno.state.cmd[i] = (char*)NULL;
-    if (inferno->config.libs[0] != NULL)
-    {
-        int j = 0;
-        while (inferno->config.libs[j] != NULL)
-        {
-            tmp_inferno.state.cmd[i] = inferno->config.libs[j];
-            strcat(tmp_inferno.state.cmd_str, " ");
-            strcat(tmp_inferno.state.cmd_str, inferno->config.libs[j]);
-            i += 1;
-            j += 1;
-        }
-    }
-    tmp_inferno.state.cmd[i] = (char*)NULL;
-    *inferno = tmp_inferno;
-    //i = 0;
-    //while(tmp_inferno.state.cmd[i] != NULL)
-    //{
-    //    printf("%s\n", tmp_inferno.state.cmd[i]);
-    //    i += 1;
-    //}
-    //exit(0);
 }
 
 #endif
@@ -324,7 +187,7 @@ void inferno_compile(inferno_t *inferno)
     // Child process
     if(pid == 0){
         // Exec stuff
-        if(execvp(inferno->state.cmd[0], &inferno->state.cmd[1]) == -1) 
+        if(execvp(shared_build_cmd[0], (char *const *)shared_build_cmd) == -1) 
         {
             fprintf(stderr, "REOLAD COMMAND ERROR: execv failed.\n"); 
             exit(1); 
@@ -340,40 +203,31 @@ void inferno_compile(inferno_t *inferno)
 void inferno_reload(inferno_t *inferno)
 {
     // UNLOAD CURRENT 
-    if(inferno->state.handle) dlclose(inferno->state.handle);
+    if(inferno->handle) dlclose(inferno->handle);
     // COPY & RENAME TMP
-    if(inferno_copy(inferno_shared_lib_tmp_path, inferno_shared_lib_path) == -1)
-    {
-        fprintf(stderr, "RELOAD ERROR: Fail to copy new shared.");
-        exit(1);
-    }
+    
+    inferno_swap();
     // LOAD DYNLIB
-    inferno->state.handle = dlopen(inferno_shared_lib_tmp_path, RTLD_LAZY);
-    if (!inferno->state.handle) {
+    printf("%s\n", tmp_output);
+    inferno->handle = dlopen(tmp_output, RTLD_LAZY);
+    if (!inferno->handle) {
         fprintf(stderr, "Error: %s\n", dlerror());
         exit(1);
     }
     // CLEAR ERROR
     dlerror();    
     // FETCH API
-    inferno_main_extern = dlsym(inferno->state.handle, inferno->config.main_symbol);
-    if ((inferno->state.error = dlerror()) != NULL)  {
-        fprintf(stderr, "Error: %s\n", inferno->state.error);
+    
+    inferno_interface = (inferno_interface_t*)dlsym(inferno->handle, "inferno_interface");
+    if ((inferno->error = dlerror()) != NULL)  {
+        fprintf(stderr, "Error: %s\n", inferno->error);
         exit(1);
     }
-    inferno_get_state_extern = dlsym(inferno->state.handle, inferno->config.get_state_symbol);
-    if ((inferno->state.error = dlerror()) != NULL)  {
-        fprintf(stderr, "Error: %s\n", inferno->state.error);
-    }
-    inferno_set_state_extern = dlsym(inferno->state.handle, inferno->config.set_state_symbol);
-    if ((inferno->state.error = dlerror()) != NULL)  {
-        fprintf(stderr, "Error: %s\n", inferno->state.error);
-    }
-    inferno->state.has_started = 1;
+    inferno->has_started = 1;
 }
 void inferno_destroy(inferno_t *inferno)
 {
-    if(inferno) dlclose(inferno->state.handle);
+    if(inferno) dlclose(inferno->handle);
 }
 #endif
 
@@ -391,9 +245,21 @@ void inferno_compile(inferno_t *inferno)
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
+    char cmd[1024] = {0}; 
+    int i = 0;
+    while(shared_build_cmd[i] != NULL)
+    {
+        strcat(cmd, shared_build_cmd[i]);
+        if(shared_build_cmd[i + 1] != NULL)
+        {
+            strcat(cmd, " ");
+        }
+        i += 1;
+    }
+
     if (!CreateProcess(
             NULL,       
-            inferno->state.cmd_str,    
+            cmd,    
             NULL,       
             NULL,       
             FALSE,      
@@ -413,39 +279,27 @@ void inferno_compile(inferno_t *inferno)
 void inferno_reload(inferno_t *inferno)
 {
     // UNLOAD CURRENT 
-    if(inferno->state.handle) FreeLibrary((HMODULE)inferno->state.handle);
+    if(inferno->handle) FreeLibrary((HMODULE)inferno->handle);
     // COPY & RENAME TMP
-    if(inferno_copy(inferno_shared_lib_tmp_path, inferno_shared_lib_path) == -1)
-    {
-        fprintf(stderr, "RELOAD ERROR: Fail to copy new shared.");
-        exit(1);
-    }
+    inferno_swap();
     // LOAD DYNLIB
-    inferno->state.handle = LoadLibraryA(inferno_shared_lib_tmp_path);
-    if (!inferno->state.handle) {
+    inferno->handle = LoadLibraryA(inferno_shared_lib_tmp_path);
+    if (!inferno->handle) {
         fprintf(stderr, "Failed to load DLL. Error code: %lu\n", GetLastError());
         exit(1);
     }
     // FETCH API
-    inferno_main_extern = (inferno_main_func)GetProcAddress((HMODULE)inferno->state.handle, inferno->config.main_symbol);
-    if (!inferno_main_extern)  {
+    inferno_interface = (inferno_interface_t*)GetProcAddress((HMODULE)inferno->handle, "inferno_interface");
+    if (!inferno_interface)  {
         fprintf(stderr, "Failed to load main_symbol. Error code: %lu\n", GetLastError());
         exit(1);
     }
-    inferno_get_state_extern = (inferno_get_state_func)GetProcAddress((HMODULE)inferno->state.handle, inferno->config.get_state_symbol);
-    if (!inferno_get_state_extern)  {
-        fprintf(stderr, "Failed to load get_state_symbol. Error code: %lu\n", GetLastError());
-    }
-    inferno_set_state_extern = (inferno_set_state_func)GetProcAddress((HMODULE)inferno->state.handle, inferno->config.set_state_symbol);
-    if (!inferno_set_state_extern)  {
-        fprintf(stderr, "Failed to load set_state_symbol. Error code: %lu\n", GetLastError());
-    }
-    inferno->state.has_started = 1;
+    inferno->has_started = 1;
 }
 
 void inferno_destroy(inferno_t *inferno)
 {
-    if(inferno) FreeLibrary((HMODULE)inferno->state.handle);
+    if(inferno) FreeLibrary((HMODULE)inferno->handle);
 }
 #endif
 
