@@ -14,6 +14,7 @@ static const char output[] = "./inferno.so";
 static const char *shared_build_cmd[] = {
     "gcc", 
     "-g", 
+    "-fPIC",
     "-shared", 
     "-std=c99", 
     "-Wall", 

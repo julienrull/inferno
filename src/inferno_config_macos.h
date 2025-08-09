@@ -15,6 +15,7 @@ static const char output[] = "./inferno.dylib";
 static const char *shared_build_cmd[] = {
     "clang", 
     "-g", 
+    "-fPIC",
     "-shared", 
     "-std=c99", 
     "-Wall", 

@@ -1,162 +1,116 @@
-# Documentation
+# Inferno
 
 ## Introduction
 
-### What is Inferno?
+**Inferno** is a lightweight C library for hot-reloading.
+It’s a single-header library (`inferno.h` + `inferno_config.h`) inspired by Sean Barrett’s [stb](https://github.com/nothings/stb) style.
 
-Inferno is a lightweight library designed to simplify hot-reload integration in your project.
-While it requires a minimal setup, the configuration is straightforward and generic.
+### Why single-header?
 
-The library consists of a single header file: `inferno.h`. It follows the **Single Header Library** format, a C library style popularized by Sean Barrett through his [stb](https://github.com/nothings/stb) libraries. Although Inferno does not yet fully adhere to all [Sean Barrett's guidelines](https://github.com/nothings/stb/blob/master/docs/stb_howto.txt), it strives to follow them as closely as possible.
+One file contains both the interface and implementation.
+Drop it into your project, `#define INFERNO_IMPL` in one source file, and you’re done.
+No separate build steps.
 
-### Why a Single Header Library?
+---
 
-The Single Header Library approach enables faster and simpler project integration by combining both definitions and implementation into a single file, eliminating the need for separate compilation and linking steps. One header file to rule them all!
+## Basic usage
 
-## Basic Usage
+Hot-reload is useful for programs running in a loop.
+Inferno compiles your code into a shared library, loads it, and runs it.
+It watches `inferno.c` for changes and reloads on the fly.
 
-Hot-reload is particularly useful for applications running in a loop.
-Inferno packages the code that needs to be reloaded into a shared library, dynamically loads it, and executes it. By default, Inferno expects the file `inferno.c` to contain the hot-reloaded code. It monitors this file for changes on each iteration and reloads it if modifications are detected.
+### Interface
 
-Your `inferno.c` file must at least implement the function:
-
-```c
-void inferno_main();
-```
-
-This function is executed by Inferno to run your program’s core logic.
-
-To preserve the application state between reloads, you also need to implement:
+Your `inferno.c` must provide:
 
 ```c
-void inferno_get_state(void*);
-void inferno_set_state(void*);
+typedef struct inferno_interface_t {
+    void (*main)();          /* Run your program’s logic. */
+    void (*get_state)(void*);/* Save app state between reloads. */
+    void (*set_state)(void*);/* Restore state after reload.    */
+} inferno_interface_t;
 ```
+
+---
 
 ### Example: `inferno.c`
 
 ```c
 #include <stdio.h>
-#include <stdlib.h>
 #include "inferno.h"
 
-typedef struct app_state_t {
+typedef struct {
     int counter;
 } app_state_t;
 
-app_state_t app_state = {0}; 
+static app_state_t app_state = {0};
 
-__inferno_export void inferno_main() {
-    printf("This is the logic of my app: counter -> %d!\n", app_state.counter);
-    app_state.counter += 1;
+void inferno_main() {
+    printf("Counter: %d\n", app_state.counter++);
 }
 
-__inferno_export void inferno_get_state(void *out) {
-    *((app_state_t*)out) = app_state;
-}
+void inferno_get_state(void *out) { *(app_state_t*)out = app_state; }
+void inferno_set_state(void *in)  { app_state = *(app_state_t*)in;  }
 
-__inferno_export void inferno_set_state(void *in) {
-    app_state = *((app_state_t*)in);
-}
+__inferno_export inferno_interface_t inferno_interface = {
+    .main = inferno_main,
+    .get_state = inferno_get_state,
+    .set_state = inferno_set_state
+};
 ```
+
+---
 
 ### Example: `main.c`
 
 ```c
-#include <stdio.h>
-#include <stdlib.h>
-
-#define INFERNO_IMPLEMENTATION
+#define INFERNO_IMPL
 #include "inferno.h"
 
 int main(void) {
     inferno_t inferno = {0};
-    inferno_init(&inferno);
-    while (1) {
-        inferno_update(&inferno);
-    }
-    return 0;
+    while (1) inferno_update(&inferno);
 }
 ```
 
-The `inferno_update` function monitors `inferno.c` for changes. When changes are detected, it unloads the current shared library, recompiles the code, and loads the updated versions of:
+`inferno_update()` checks for changes, recompiles, unloads the old library, and loads the new one.
 
-* `void inferno_main();`
-* `void inferno_get_state(void*);`
-* `void inferno_set_state(void*);`
+---
 
 ## Configuration
 
-Each platform uses a default compiler:
-
-* **Linux** → `gcc`
-* **Windows** → `cl`
-* **MacOS** → `clang`
-
-Inferno is configurable to adapt to your specific needs. Below are some configuration examples:
+Default config (`inferno_config.h`):
 
 ```c
-inferno_t inferno = {0};
+#ifndef INFERNO_CONFIG_H
+#define INFERNO_CONFIG_H
 
-// Change the default shared library compiler
-inferno.config.cc = "clang";
+#define INFERNO_STORAGE_SIZE 1024 /* Bytes for saved state. */
 
-// Add extra compiler flags
-inferno.config.flags[0] = "-Wall";
-inferno.config.flags[1] = "-Werror";
-inferno.config.flags[2] = (char*)NULL;
+static const char *watched[] = { "inferno.c", NULL };
+static const char output[] = "./inferno.so";
 
-// The first source file in the list acts as the shared library entry point, overriding the default inferno.c.
-inferno.config.srcs[0] = "./src/hotreload_code_entry_point.c";
-inferno.config.srcs[1] = "./src/file2.c";
-inferno.config.srcs[2] = "./src/sub_folder/file3.c";
-inferno.config.srcs[3] = (char*)NULL;
+static const char *shared_build_cmd[] = {
+    "gcc", "-g", "-fPIC", "-shared", "-std=c99", "-Wall", "-Werror",
+    "inferno.c", "-o", output, NULL
+};
 
-// Specify additional source files to include during shared library compilation,
-// particularly useful for projects using a unity-build approach.
-
-inferno.config.compilation_include_all_srcs = 0; // enable 
-inferno.config.compilation_include_all_srcs = -1; // disable
-
-// Add external libraries for linking
-inferno.config.libs[0] = "./lib/libraylib.dylib";
-inferno.config.libs[1] = (char*)NULL;
-
-// Override symbol names
-inferno.config.inferno_main = "my_main";
-inferno.config.inferno_get_state = "my_get_state";
-inferno.config.inferno_set_state = "my_set_state";
-
-// Change the location of the hot-reloadable code
-inferno.config.location = "./src/my_hotreload_code.c";
-
-inferno_init(&inferno);
+#endif
 ```
 
-## Platform-Specific Considerations
-
-If you are using Inferno without external libraries, no additional setup is required.
-However, when working with external libraries like raylib, you must ensure that the shared library can resolve external symbols.
-
-* **Windows:** To use `raylib.dll` symbols in the Inferno shared library, you need to link against `raylib.lib`.
-* **MacOS:** Unlike Linux, you must explicitly add `raylib.dylib` to the shared library compiler command to resolve symbols.
-
-### Workarounds
-
-#### Windows
+Override by creating your own `inferno_config.h`:
 
 ```c
-inferno_t inferno = {0};
-inferno.config.libs[0] = ".\\lib\\raylib.lib";
-inferno.config.libs[1] = (char*)NULL;
-inferno_init(&inferno);
+#include "my_inferno_config.h"
+#define INFERNO_IMPL
+#include "inferno.h"
 ```
 
-#### MacOS
+---
 
-```c
-inferno_t inferno = {0};
-inferno.config.libs[0] = "./lib/libraylib.dylib";
-inferno.config.libs[1] = (char*)NULL;
-inferno_init(&inferno);
-```
+## Examples
+
+See [examples](https://github.com/julienrull/inferno/tree/master/examples) for
+
+* External shared libraries
+* Cross-platform builds
