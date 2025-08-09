@@ -6,17 +6,22 @@
 #define INFERNO_STORAGE_SIZE 1024
 
 /* source files watched for changes */ 
-static const char *const watched[] = { "inferno.c" };
+static const char *watched[] = { "inferno.c" };
+
 
 /* shared lib name */ 
-#define INFERNO_OUTPUT ".\\bin\\inferno.dll"
-static const char output[] = INFERNO_OUTPUT;
+static const char output[] = "./inferno/bin/inferno.dylib";
 
 static const char *shared_build_cmd[] = {
-    "cl", 
-    "/LD", 
+    "clang", 
+    "-g", 
+    "-shared", 
+    "-std=c99", 
+    "-Wall", 
+    "-Werror",
     "inferno.c",
-    "/link", "/OUT:" INFERNO_OUTPUT,
+    "-o", output,
+    "./lib/libraylib.5.5.0.dylib", 
     (char*)NULL
 };
 #endif

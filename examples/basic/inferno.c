@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdlib.h>
-#include "../../src/inferno_interface.h"
+#include "../../src/inferno.h"
 
 typedef struct basic_state
 {
@@ -13,7 +13,7 @@ static basic_state state = {0};
 
 static void inferno_main()
 {
-    printf("Heo ! I'm %d\n", state.age);
+    printf("Hello ! I'm %d\n", state.age);
     state.age += 1;
 }
 

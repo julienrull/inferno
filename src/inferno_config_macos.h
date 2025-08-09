@@ -5,21 +5,21 @@
 /* hot reloaded code state storage */ 
 #define INFERNO_STORAGE_SIZE 1024
 
-/* source files watched for changes */ 
-static const char *const watched[] = { "inferno.c" };
+/* watched source files for changes */ 
+static const char *watched[] = { "inferno.c" };
 
 
 /* shared lib name */ 
-static const char output[] = "./bin/inferno.so";
+static const char output[] = "./inferno.dylib";
 
 static const char *shared_build_cmd[] = {
-    "gcc", 
+    "clang", 
     "-g", 
     "-shared", 
     "-std=c99", 
     "-Wall", 
     "-Werror",
-    watched[0],
+    "inferno.c",
     "-o", output,
     (char*)NULL
 };

@@ -4,6 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef _WIN32
+  #define __inferno_export __declspec(dllexport)
+#else
+  #define __inferno_export __attribute__((visibility("default")))
+#endif
+
 #define INFERNO_CMD_MAX_SIZE 1024
 #define INFERNO_MAX_SOURCES 1024
 #define INFERNO_TMP_OUTPUT_SIZE 128
@@ -19,15 +25,20 @@ typedef struct inferno_t
     int file_version;
 } inferno_t;
 
+
+typedef struct inferno_interface_t{
+    void (*main)();
+    void (*get_state)(void*);
+    void (*set_state)(void*);
+}inferno_interface_t;
+
+
 typedef enum inferno_action_t
 {
     INFERNO_ACTION_NONE       = 0,
     INFERNO_ACTION_COMPILE    = 1,
     INFERNO_ACTION_RELOAD     = 2
 } inferno_action_t;
-
-
-
 
 int inferno_watch_sources(inferno_t *inferno);
 int inferno_copy(const char *dst, const char *src); 
@@ -37,15 +48,12 @@ void inferno_update(inferno_t *inferno);
 void inferno_destroy(inferno_t *inferno);
 void inferno_compile(inferno_t *inferno);
 void inferno_reload(inferno_t *inferno);
-
 void inferno_increment_file_version(inferno_t *inferno);
 
 
 
 
 #if defined(__linux__) || defined(__unix__) || defined(__posix__) ||defined(__APPLE__) || defined(__MACH__)
-
-
 #ifdef INFERNO_IMPL
 #define INFERNO_LINUX_IMPL
 #endif //INFERNO_IMPL
@@ -68,7 +76,6 @@ void inferno_increment_file_version(inferno_t *inferno);
 #include <stdint.h>
 #include <sys/stat.h>
 #include "inferno_config.h"
-#include "inferno_interface.h"
 
 static char storage[INFERNO_STORAGE_SIZE] = {0};
 static inferno_interface_t *inferno_interface;

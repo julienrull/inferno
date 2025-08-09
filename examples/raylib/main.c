@@ -6,8 +6,6 @@
 
 int main(void)
 {
-
-
     inferno_t inferno = {0};
     const int screenWidth  = 800;
     const int screenHeight = 450;
